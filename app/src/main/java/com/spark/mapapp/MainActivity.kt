@@ -63,6 +63,7 @@ import java.io.InputStreamReader
 
 class MainActivity : AppCompatActivity(), PlaceSelectionListener, OnMapReadyCallback {
 
+    var dataPoints = ArrayList<LatLng>()
     private var sourceLatLng: LatLng? = null
     private var destinationLatLng: LatLng? = null
 
@@ -111,6 +112,7 @@ class MainActivity : AppCompatActivity(), PlaceSelectionListener, OnMapReadyCall
                 val uri = result.data?.data
                 if (uri != null) {
                     saveToFile(uri)
+                    savePoints(uri)
                 }
             }
         }
@@ -773,7 +775,9 @@ class MainActivity : AppCompatActivity(), PlaceSelectionListener, OnMapReadyCall
                         val route = body.routes.firstOrNull()
                         if (route?.overviewPolyline != null) {
                             val points = PolyUtil.decode(route.overviewPolyline.points)
-                            Log.d("Polyline", points.toString())
+                            for (point in points) {
+                                dataPoints.add(point)
+                            }
                             // Encode the points into a polyline string
                             polylineString = PolyUtil.encode(points)
                             val sourceLatLngString =
@@ -836,6 +840,34 @@ class MainActivity : AppCompatActivity(), PlaceSelectionListener, OnMapReadyCall
                 ).show()
             }
         })
+    }
+
+    private fun savePoints(uri: Uri) {
+        try {
+            contentResolver.openOutputStream(uri)?.use { outputStream ->
+                val gson = Gson()
+                val formatedList = mutableListOf<HashMap<String, Double>>()
+                for (latLng in dataPoints) {
+                    val latlngMap = hashMapOf(
+                        "latitude" to latLng.latitude,
+                        "longitude" to latLng.longitude
+                    )
+                    formatedList.add(latlngMap)
+                    Log.d("Saved LatLng", latlngMap.toString())
+                }
+                val json = gson.toJson(formatedList)
+                outputStream.write(json.toByteArray())
+            }
+            Toast.makeText(
+                this@MainActivity,
+                "Route exported successfully",
+                Toast.LENGTH_SHORT
+            ).show()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error exporting route", e)
+            Toast.makeText(this@MainActivity, "Error exporting route", Toast.LENGTH_SHORT)
+                .show()
+        }
     }
 
 
